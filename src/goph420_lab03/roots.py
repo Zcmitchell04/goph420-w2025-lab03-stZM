@@ -20,9 +20,11 @@ def root_newton_raphson(x0, f, dfdx):
     iterations_needed (int) = The number of iterations needed to converge
     rel_err (np.ndarray) = one dimensional vector, gives approx. relative error AT EACH ITERATION
     """
-    x0 =
-    f =
-    dfdx = np.ndarray()
+    x0 = float(x0)
+    f = int(f)
+    dfdx = np.ndarray(dfdx)
+    dfdx = dfdx.flatten()
+
 
 
 
@@ -42,6 +44,7 @@ def root_secant_modified(x0, dx, f) :
         iterations_needed (int) = The number of iterations needed to converge
         rel_err (np.ndarray) = one dimensional vector, gives approx. relative error AT EACH ITERATION
         """
-    x0 =
-    dx =
+    x0 = float(x0)
+    dx = int(dx)
     f = np.ndarray()
+    f = f.flatten()
