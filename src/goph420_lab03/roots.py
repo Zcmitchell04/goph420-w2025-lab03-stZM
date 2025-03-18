@@ -29,7 +29,7 @@ def root_newton_raphson(x0, f, dfdx, tol = 1e-8, max_iter = 100):
         dfx = dfdx(x)
 
         if dfx == 0:  # Avoid division by zero
-            raise ValueError("Derivative is zero, unable to proceed with Newton-Raphson.")
+            raise ValueError("The Derivative cannot be zero.")
 
         x_new = x - fx / dfx
         error = abs(x_new - x) / abs(x_new)
@@ -41,7 +41,7 @@ def root_newton_raphson(x0, f, dfdx, tol = 1e-8, max_iter = 100):
 
         x = x_new
 
-    raise ValueError("Maximum number of iterations exceeded.")
+    raise ValueError("Iterations are fulfilled.")
 
 
 
@@ -71,7 +71,7 @@ def root_secant_modified(x0, dx, f, tol = 1e-8, max_iter = 100) :
 
         dfx = (fx_dx - fx) / dx
         if dfx == 0:  # Avoid division by zero
-            raise ValueError("Derivative approximation is zero, unable to proceed.")
+            raise ValueError("The derivative approximation cannot be zero")
 
         x_new = x - fx / dfx
         error = abs(x_new - x) / abs(x_new)
@@ -83,4 +83,4 @@ def root_secant_modified(x0, dx, f, tol = 1e-8, max_iter = 100) :
 
         x = x_new
 
-    raise ValueError("Maximum number of iterations exceeded.")
+    raise ValueError("Maximum iterations fulfilled")
