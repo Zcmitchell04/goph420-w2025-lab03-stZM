@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib
+import matplotlib as plt
 
 #writitng functions to find the roots using two methods
 
