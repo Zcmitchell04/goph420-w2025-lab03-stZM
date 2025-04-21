@@ -5,7 +5,7 @@ root_newton_raphson,
                                      )
 
 # Frequency range
-frequencies = [0.1, 0.5, 1, 1.4, 2, 5] # Frequencies in Hz
+frequencies = [0.1, 0.5, 1, 1.4, 2, 5]  # Frequencies in Hz
 
 
 def atote_finding(freq, rho1, rho2, beta1, beta2, H):
@@ -18,7 +18,6 @@ def atote_finding(freq, rho1, rho2, beta1, beta2, H):
     --------
 
    """
-
 
     nf = len(freq)
 
@@ -70,79 +69,127 @@ def atote_finding(freq, rho1, rho2, beta1, beta2, H):
 
 
 
-def dispersion_curve(frequencies, rho1, rho2, beta1, beta2, H):
-    """ Function to compute Love wave velocity (c_L) and mode solutions for each frequency. """
+# Dispersion equation function
+def g(zeta, f, rho1, rho2, beta1, beta2, H):
+    term1 = (rho2/rho1) * np.sqrt(H**2 * (1/beta1**2 - 1/beta2**2)-zeta**2)/zeta
+    term2 = np.tan(2*np.pi*f*zeta)
+    return term1 - term2
 
-    mode = 'newton'
-    c_L_all_modes = []  # Store Love wave velocities for each mode at each frequency
-    zeta_all_modes = []  # Store all the zeta values (modes) for each frequency
+def func_deriv(zeta, f, rho1, rho2, beta1, beta2, H):
+    term1 = (rho2/rho1)*(-1/np.sqrt((H**2*(beta1**-2 - beta2**-2))-zeta**2))
+    term2 = ((rho2/rho1) * (-(np.sqrt(H**2 * (beta1**-2 - beta2**-2)-zeta**2))))/zeta**2
+    term3 = 2*np.pi*f * (1/np.cos(2*np.pi*f*zeta))**2
+    return term1 + term2 - term3
+
+# Function to find cL (Love wave velocity) from zeta using Equation (2)
+def compute_cL(zeta, beta1, H):
+    cL_sq = 1/(beta1**-2 - (H**-2 / zeta**-2))
+    return np.sqrt(cL_sq)
+
+
+# Define a wrapper to pass additional parameters (f, rho1, rho2, beta1, beta2, H) to g and func_deriv
+def wrapped_g(zeta, f, rho1, rho2, beta1, beta2, H):
+    return g(zeta, f, rho1, rho2, beta1, beta2, H)
+
+def wrapped_func_deriv(zeta, f, rho1, rho2, beta1, beta2, H):
+    return func_deriv(zeta, f, rho1, rho2, beta1, beta2, H)
+
+
+def find_all_modes(f, rho1, rho2, beta1, beta2, H, max_modes=5):
+
+    zeta_max = np.sqrt(H ** 2 * (1 / beta1 ** 2 - 1 / beta2 ** 2))
+
+    atotes = [0.0]
+    k = 0
+    while True:
+        a = 0.25 * (2 * k + 1) / f
+        if a < zeta_max:
+            atotes.append(a)
+            k += 1
+        else:
+            break
+    atotes.append(zeta_max)
+
+    zeta_roots = []
+
+    for i in range(len(atotes) - 1):
+        a, b = atotes[i], atotes[i + 1]
+        zeta_guess = (b - 1e-4)
+        print(zeta_guess)
+
+        zeta_root, iter, _ = root_newton_raphson(
+            zeta_guess,
+            lambda zeta: g(zeta, f, rho1, rho2, beta1, beta2, H),
+            lambda zeta: func_deriv(zeta, f, rho1, rho2, beta1, beta2, H)
+        )
+
+        if zeta_root > a and zeta_root < b and iter < 40:
+            zeta_roots.append(zeta_root)
+
+
+        if len(zeta_roots) >= max_modes:
+            break
+
+    return zeta_roots
+
+# Modify the plot_love_wave_dispersion function to pass the required arguments
+def plot_love_wave_dispersion_all_modes(frequencies, max_modes=5):
+    mode_curves = [[] for _ in range(max_modes)]
+    lambda_curves = [[] for _ in range(max_modes)]
+    zeta_roots = []
+    cL_roots = []
+    lam_roots = []
 
     for f in frequencies:
-        # Define the root-finding problem for each frequency
-        def g(zeta):
-            return (rho2 / rho1) * (np.sqrt(H ** 2 * (beta1 ** -2 - beta2 ** -2) - zeta ** 2) / zeta) - np.tan(
-                2 * np.pi * f * zeta)
+        print(f"\n🔍 Solving for frequency: {f} Hz")
 
-        # Initial guesses for zeta (we will use a range of guesses for multiple modes)
-        zeta_initial_guesses = np.linspace(0.1, np.sqrt(H**2 * (beta1**-2 - beta2**-2)), 10)
+        zeta_new = find_all_modes(f, rho1, rho2, beta1, beta2, H, max_modes)
+        cL_new = np.array([compute_cL(zeta, beta1, H) for zeta in zeta_new])
+        lam_new = cL_new / f
 
-        zeta_values = []
-        if mode == 'newton':
-            for zeta_guess in zeta_initial_guesses:
-                try:
-                    # Use root finding (newton-raphson) to find each mode (zeta)
-                    zeta, _, _ = root_newton_raphson(zeta_guess, g, lambda zeta: (g(zeta + 1e-6) - g(zeta)) / 1e-6)
-                    if zeta not in zeta_values:
-                        zeta_values.append(zeta)  # Avoid duplicate zeta values
-                except Exception:
-                    continue  # Skip if root finding fails for a given initial guess
+        zeta_roots.append(zeta_new)
+        cL_roots.append(cL_new)
+        lam_roots.append(lam_new)
 
-        elif mode == 'secant':
-            for zeta_guess in zeta_initial_guesses:
-                try:
-                    # Use root finding (secant) to find each mode (zeta)
-                    zeta, _, _ = root_secant_modified(zeta_guess, g, lambda zeta: (g(zeta + 1e-6) - g(zeta)) / 1e-6)
-                    if zeta not in zeta_values:
-                        zeta_values.append(zeta)  # Avoid duplicate zeta values
-                except Exception:
-                    continue  # Skip if root finding fails for a given initial guess
+    for m in range(max_modes):
+        for k,f in enumerate(frequencies):
 
-        # Compute c_L for each mode (zeta) and store it
-        c_L_modes = [H / zeta for zeta in zeta_values]
-        c_L_all_modes.append(c_L_modes)
-        zeta_all_modes.append(zeta_values)
+            if m < len(cL_roots[k]):
+                mode_curves[m].append(cL_roots[k][m])
+                lambda_curves[m].append(lam_roots[k][m])
 
-    return c_L_all_modes, zeta_all_modes
 
-def mode_plt(c_L_all_modes, zeta_all_modes, frequencies):
-    """ Plot Love wave velocity and wavelength for each mode. """
-    plt.figure(figsize=(12, 8))
 
-    # Plot c_L vs f for each mode
-    plt.subplot(2, 1, 1)
-    for i, c_L_modes in enumerate(c_L_all_modes):
-        # Check if there are modes for this frequency
-        if len(c_L_modes) > 0:
-            plt.plot([frequencies[i]] * len(c_L_modes), c_L_modes, label=f"Frequency {frequencies[i]} Hz", marker='o', linestyle='None', color='blue')
-    plt.xlabel('Frequency (Hz)')
-    plt.ylabel('Love wave velocity (m/s)')
-    plt.title('Love Wave Velocity vs Frequency')
+    print(mode_curves)
+    print(lambda_curves)
+
+    # Plot
+    plt.figure(figsize=(14, 6))
+
+# plot wave velocity
+    plt.subplot(1, 2, 1)
+    for mode_idx, cLs in enumerate(mode_curves):
+        n_freq = len(cLs)
+        plt.plot(frequencies[-n_freq: ], cLs, marker='o', label=f'Mode {mode_idx}')
+    plt.xlabel("Frequency (Hz)")
+    plt.ylabel("Love Wave Velocity (m/s)")
+    plt.title("Love Wave Velocity vs Frequency (All Modes)")
+    plt.savefig("C:/Users/zcmit/git/Goph420projects/goph420-w2025-lab03-stZM/figures/wavevelocity-plot.png", dpi=300)
     plt.grid(True)
     plt.legend()
 
-    # Plot wavelength (lambda_L) vs f for each mode
-    plt.subplot(2, 1, 2)
-    for i, c_L_modes in enumerate(c_L_all_modes):
-        if len(c_L_modes) > 0:
-            # Wavelength calculation: lambda_L = c_L / f
-            lambda_L_modes = np.array(c_L_modes) / frequencies[i]
-            plt.plot([frequencies[i]] * len(c_L_modes), lambda_L_modes, label=f"Frequency {frequencies[i]} Hz", marker='o', linestyle='None', color='red')
-    plt.xlabel('Frequency (Hz)')
-    plt.ylabel('Wavelength (m)')
-    plt.title('Wavelength vs Frequency')
+# plot wavelength
+    plt.subplot(1, 2, 2)
+    for mode_idx, lambdas in enumerate(lambda_curves):
+        n_freq = len(lambdas)
+        plt.plot(frequencies[-n_freq: ], lambdas, marker='x', label=f'Mode {mode_idx}')
+    plt.xlabel("Frequency (Hz)")
+    plt.ylabel("Wavelength (m)")
+    plt.title("Wavelength vs Frequency (All Modes)")
     plt.grid(True)
     plt.legend()
 
+    plt.savefig("C:/Users/zcmit/git/Goph420projects/goph420-w2025-lab03-stZM/figures/wavelength-plot.png", dpi=300)
     plt.tight_layout()
     plt.show()
 
@@ -157,8 +204,5 @@ H = 4000  # m (4 km)
 # Optional: Plot asymptotes for root finding for some frequencies
 atote_finding(frequencies, rho1, rho2, beta1, beta2, H)
 
-# Find the dispersion curve and plot the results
-c_L_all_modes, zeta_all_modes = dispersion_curve(frequencies, rho1, rho2, beta1, beta2, H)
-
-# Plot the mode curves
-mode_plt(c_L_all_modes, zeta_all_modes, frequencies)
+#plot cl vs f and lambda vs f
+plot_love_wave_dispersion_all_modes(frequencies, max_modes=4)

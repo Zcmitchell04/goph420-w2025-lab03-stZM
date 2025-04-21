@@ -5,7 +5,7 @@ import matplotlib as plt
 
 
 
-def root_newton_raphson(x0, f, dfdx, tol = 1e-8, max_iter = 100):
+def root_newton_raphson(x0, f, dfdx, tol = 1e-8, max_iter=100):
     """Finding the root using the Newton Raphson method
 
     Parameters
@@ -22,26 +22,22 @@ def root_newton_raphson(x0, f, dfdx, tol = 1e-8, max_iter = 100):
     """
     x = x0
     errors = []
+    eps_a = 1
+    iter_num = 0
 
-    for iter_num in range(1, max_iter + 1):
+    while eps_a > tol and iter_num < max_iter:
         # Compute the next approximation using Newton-Raphson formula
         fx = f(x)
         dfx = dfdx(x)
 
-        if dfx == 0:  # Avoid division by zero
-            raise ValueError("The Derivative cannot be zero.")
+        dx = - fx / dfx
+        x += dx
+        eps_a = np.abs(dx/x)
+        errors.append(eps_a)
+        iter_num += 1
 
-        x_new = x - fx / dfx
-        error = abs(x_new - x) / abs(x_new)
-        errors.append(error)
+    return x, iter_num, np.array(errors)
 
-        # Check for convergence
-        if error < tol:
-            return x_new, iter_num, np.array(errors)
-
-        x = x_new
-
-    raise ValueError("Iterations are fulfilled.")
 
 
 
